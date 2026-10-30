@@ -111,7 +111,7 @@ Initial verification on Windows build 22631, Rust 1.98.1 (2026-10-30):
 | `cargo test --locked --offline -p client-core screen::tests` | 1 passed |
 | `xtask policy` | Passed using the already-built repository xtask executable |
 | `cargo xtask check` | Format and Clippy passed; test compilation stopped with OS error 112 (disk full) |
-| Executable build / native screenshots | Both the initial demo build and a final build with debug symbols disabled and `-j 2` stopped with OS error 112; no executable or native images produced |
+| Executable build / native screenshots | All three attempts stopped with OS error 112; the latest symbol-free `-j 2` build started with approximately 3.96 GiB free and reached the UI crate. No executable or native images produced |
 | `cargo xtask package` / release size and runtime comparison | Not run: insufficient disk space established by the failed build and tests |
 | Live app/window previews, desktop audio, remote viewers | Not tested; no live capture or Discord session used |
 
@@ -125,3 +125,8 @@ The final symbol-free build started with about 2.3 GiB free and still ran out of
 building dependencies. Failed task build output was removed afterward; verification logs remain
 beside the checkout. Provide additional free disk space or a larger build volume before retrying
 the executable, workspace tests and package. No unrelated files or running tasks were cleaned.
+After additional space became available, another unchanged-source, symbol-free build with two
+workers reached `ui` but failed writing compiler metadata with OS error 112. Available volume
+space fluctuated during the attempt; the exact successful peak requirement is still unknown.
+Only this fork's failed build output was removed after that attempt. Source checks above remain
+valid; a runnable build and native visual verification are still outstanding.
