@@ -19,6 +19,28 @@ mod delta;
 mod install;
 
 const RELEASES: &str = "https://api.github.com/repos/ViceVerse-cz/Serein/releases";
+const SOURCE_ONLY_FORK: bool = true;
+
+#[cfg(test)]
+mod fork_tests {
+	use super::*;
+	#[test]
+	fn stock_update_requests_cannot_start_network_or_install_work() {
+		let runtime = Runtime::new().unwrap();
+		let mut updater = Updater::new(false);
+		let mut view = ui::updates::Updates {
+			check_requested: true,
+			download_requested: true,
+			restart_requested: true,
+			..Default::default()
+		};
+		assert!(!updater.sync(&egui::Context::default(), &runtime, &mut view, true));
+		assert!(updater.job.is_none() && updater.staged.is_none() && updater.helper.is_none());
+		assert!(!updater.armed && !updater.close_requested);
+		assert!(!view.available && !view.ready && !view.supported);
+		assert!(!view.check_requested && !view.download_requested && !view.restart_requested);
+	}
+}
 const MAX_METADATA: usize = 2 * 1024 * 1024;
 const MAX_DOWNLOAD: u64 = 512 * 1024 * 1024;
 const CHECK_INTERVAL: Duration = Duration::from_secs(60 * 60);
@@ -147,6 +169,15 @@ impl Updater {
 			view.busy = false;
 			view.progress = None;
 			view.supported = true;
+			return false;
+		}
+		if SOURCE_ONLY_FORK {
+			view.supported = false;
+			view.available = false;
+			view.ready = false;
+			view.busy = false;
+			view.progress = None;
+			view.status = "Custom fork: merge upstream updates and rebuild. Stock binary updates are disabled; see docs/fork-maintenance.md.".into();
 			return false;
 		}
 		let supported = (cfg!(any(target_os = "macos", windows)) && !install::nix_session())
