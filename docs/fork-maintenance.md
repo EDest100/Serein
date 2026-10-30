@@ -26,11 +26,21 @@ there is no silent fallback that captures the call itself.
 
 Quality presets remain 480p, 720p, 1080p and 15/30/60 FPS. Custom dimensions must be even,
 between 2 and 1920 pixels wide and 2 and 1080 high; custom FPS is an integer from 1 to 120.
-These bounds retain the existing video receiver/encoder budget. Odd dimensions disable
+These bounds retain the existing application video budget. Odd dimensions disable
 Share with a validation message. Width, height and FPS reach the existing native capture
 pacing, scaling, hardware/software H.264 encoders and stream signaling. Bitrate scales
 with pixel count and FPS, bounded to 250 kbit/s–16 Mbit/s. A configured rate is a target;
 the source refresh rate, capture events, encoder and network can limit delivered FPS.
+
+The 1080p output cap is an application compatibility and memory-bound choice retained when
+adding custom sizes, not a demonstrated maximum of H.264 or the Windows encoder. Upstream
+`Settings::valid` accepted only the 480p/720p/1080p presets; the incoming video decoder caps
+width at 1920 and pixels at 1920 x 1080 (`video_receive.rs`), and Linux raw-frame validation
+also caps frames at 1920 x 1080 (`screen/gstreamer.rs`). Windows capture already accepts
+source frames up to 3840 x 2160 and scales them for output; the Media Foundation encoder
+uses the requested dimensions and the shared raw-byte bound rather than a literal 1080p
+check. Larger custom output would need a coordinated review of validation, Linux handling,
+receiver bounds, memory use and encoder/receiver tests. The validation remains in place.
 
 The Windows branded in-app title strip and navigation arrows are removed. Native Windows
 decorations provide dragging, minimize, maximize and close. Mouse side-button history navigation
