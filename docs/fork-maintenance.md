@@ -99,8 +99,9 @@ Initial verification on Windows build 22631, Rust 1.98.1 (2026-10-30):
 | `cargo check --locked --offline -p serein --features demo` | Passed |
 | `cargo check --locked --offline -p serein --no-default-features` | Passed |
 | `cargo test --locked --offline -p client-core screen::tests` | 1 passed |
+| `xtask policy` | Passed using the already-built repository xtask executable |
 | `cargo xtask check` | Format and Clippy passed; test compilation stopped with OS error 112 (disk full) |
-| Executable build / native screenshots | Initial demo build stopped with OS error 112; no executable or native images produced |
+| Executable build / native screenshots | Both the initial demo build and a final build with debug symbols disabled and `-j 2` stopped with OS error 112; no executable or native images produced |
 | `cargo xtask package` / release size and runtime comparison | Not run: insufficient disk space established by the failed build and tests |
 | Live app/window previews, desktop audio, remote viewers | Not tested; no live capture or Discord session used |
 
@@ -110,3 +111,7 @@ pinned dependency lockfile and toolchain were retained. Four upstream demo role 
 were missing the `managed` field; this fork supplies `false` so the demo check compiles.
 The remaining new UI/window/updater regression tests were type-checked by workspace Clippy,
 but were not executed because the workspace test build exceeded available disk space.
+The final symbol-free build started with about 2.3 GiB free and still ran out of space while
+building dependencies. Failed task build output was removed afterward; verification logs remain
+beside the checkout. Provide additional free disk space or a larger build volume before retrying
+the executable, workspace tests and package. No unrelated files or running tasks were cleaned.
