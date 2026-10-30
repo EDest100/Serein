@@ -93,21 +93,6 @@ fn hidden_title_strip_does_not_start_window_drag() {
 	};
 	let pos = egui::pos2(600.0, 18.0);
 	run(&mut view, &mut state, vec![]);
-	assert_eq!(
-		run(
-			&mut view,
-			&mut state,
-			pointer(pos, PointerButton::Primary, true)
-		),
-		[ViewportCommand::StartDrag]
-	);
-	run(
-		&mut view,
-		&mut state,
-		pointer(pos, PointerButton::Primary, false),
-	);
-	view.hide_title_bar = true;
-	run(&mut view, &mut state, vec![]);
 	assert!(
 		!run(
 			&mut view,

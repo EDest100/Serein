@@ -41,6 +41,9 @@ mod imp;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) use imp::{Capture, sources};
 
+#[cfg(target_os = "windows")]
+pub(crate) use imp::{audio_supported, source_preview};
+
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) fn sources() -> Result<Vec<Source>, &'static str> {
 	Err("Screen sharing is supported only on macOS and Windows")

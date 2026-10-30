@@ -4,6 +4,9 @@ use model::Id;
 
 pub const MAX_SOURCES: usize = 64;
 pub const MAX_SOURCE_NAME_BYTES: usize = 256;
+pub const MAX_WIDTH: u32 = 1920;
+pub const MAX_HEIGHT: u32 = 1080;
+pub const MAX_FPS: u32 = 120;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceId {
@@ -36,19 +39,66 @@ pub struct Settings {
 impl Settings {
 	pub fn valid(self) -> bool {
 		!matches!(self.source, SourceId::Display(0) | SourceId::Window(0))
-			&& matches!(
-				(self.width, self.height),
-				(854, 480) | (1280, 720) | (1920, 1080)
-			) && matches!(self.fps, 15 | 30 | 60)
+			&& (2..=MAX_WIDTH).contains(&self.width)
+			&& (2..=MAX_HEIGHT).contains(&self.height)
+			&& self.width.is_multiple_of(2)
+			&& self.height.is_multiple_of(2)
+			&& (1..=MAX_FPS).contains(&self.fps)
 	}
 
 	pub fn bit_rate(self) -> u32 {
-		let base = match (self.width, self.height) {
-			(854, 480) => 2_000_000,
-			(1920, 1080) => 8_000_000,
-			_ => 4_000_000,
+		let pixels = u64::from(self.width) * u64::from(self.height);
+		let rate = pixels
+			.saturating_mul(4)
+			.saturating_mul(u64::from(self.fps.max(30)))
+			/ 30;
+		rate.clamp(250_000, 16_000_000) as u32
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn custom_quality_is_bounded_and_scales_bitrate_without_overflow() {
+		let mut settings = Settings {
+			source: SourceId::Display(1),
+			width: 1600,
+			height: 900,
+			fps: 48,
+			cursor: true,
+			audio: true,
 		};
-		(base * if self.fps == 60 { 2 } else { 1 }).min(16_000_000)
+		assert!(settings.valid());
+		let bitrate = settings.bit_rate();
+		settings.fps = 96;
+		assert!(settings.valid());
+		assert!(settings.bit_rate() > bitrate);
+		for (width, height, fps) in [
+			(0, 900, 48),
+			(1601, 900, 48),
+			(1600, 901, 48),
+			(1922, 900, 48),
+			(1600, 1082, 48),
+			(1600, 900, 0),
+			(1600, 900, 121),
+		] {
+			settings.width = width;
+			settings.height = height;
+			settings.fps = fps;
+			assert!(!settings.valid());
+		}
+		settings.width = u32::MAX;
+		settings.height = u32::MAX;
+		settings.fps = u32::MAX;
+		assert!(!settings.valid());
+		assert_eq!(settings.bit_rate(), 16_000_000);
+		settings.source = SourceId::Window(0);
+		settings.width = 1280;
+		settings.height = 720;
+		settings.fps = 60;
+		assert!(!settings.valid());
 	}
 }
 

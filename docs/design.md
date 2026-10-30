@@ -73,13 +73,13 @@ The bundled faces remain upstream's hinted TrueType builds. See `assets/README.m
 
 ## Layout
 
-- 36px title strip (`base`): hidden native title bar on macOS with traffic lights inline, centred
+- 36px title strip (`base`) on macOS: hidden native title bar with traffic lights inline, centred
   context title, session status text and an OFFLINE PREVIEW / EXPERIMENTAL pill. Eframe centres the
   native macOS buttons in the active title strip every frame, including after resizing or zooming;
-  sign-in and login use their taller headers. Windows renders native-fidelity caption buttons
-  (minimize, maximize/restore, close) flush in the top-right corner, and resize hit testing excludes
-  the caption area so corner clicks hit Close. Windows and macOS General settings can hide the app strip
-  and use native window decorations instead. Linux always omits the app strip and defaults to system
+  sign-in and login use their taller headers. This fork omits the branded app strip and navigation
+  arrows on Windows and uses native window decorations for dragging and caption controls. macOS
+  General settings can hide the app strip and use native window decorations instead.
+  Linux always omits the app strip and defaults to system
   decorations, with the Adwaita Wayland fallback on GNOME. General → Window can hide Linux decorations
   immediately for tiling window managers; the device preference also applies at startup.
 - 72px server rail (`base`): 48px home button and server icons (circle, rounded square when
@@ -141,12 +141,16 @@ Pause and the macOS Fn key, when the OS delivers them to the focused window. The
 persist through the existing device settings. Global availability remains limited by the
 native shortcut adapter; unsupported global bindings continue to work while Serein is focused.
 
-Voice follows Discord's call screens: a black stage with 80px participant avatars (DM calls,
-above the conversation) or 16:9 tiles with name badges (guild channels), a bottom control bar
-of dark pills (mute with settings chevron, camera, screen share, activities, soundboard, more)
-and a red hang-up button, a green "In a call" badge in the header, mute/deafen toggles in the
-account card, and a "Voice Connected" panel above it while connected. Camera, screen share,
-activities and soundboard are shown disabled: Serein has no such features.
+Voice uses a black stage with participant avatars or 16:9 tiles and name badges. Compact 40px
+call controls group microphone/camera and their device menus, then screen sharing and a direct
+Deafen/Undeafen action, followed by a separate red hang-up button. Narrow stages drop secondary
+actions before overlapping controls. The account card retains mute/deafen and connection status.
+
+The Windows screen-share dialog separates Screens and Apps, with two 16:9 snapshot tiles per
+row and names beneath them. Selected tiles have an accent border; loading and unavailable previews
+are explicit. Presets and validated custom resolution/FPS controls sit below the source grid,
+followed by cursor and desktop-audio switches. The outer dialog scrolls while its footer stays
+accessible. See [fork maintenance](fork-maintenance.md) for capture bounds and update policy.
 
 ## Verification notes
 

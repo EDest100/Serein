@@ -24,6 +24,43 @@ use windows_capture::{
 #[path = "audio_windows.rs"]
 mod audio;
 
+#[path = "sources_windows.rs"]
+mod discovery;
+
+pub(crate) fn audio_supported() -> bool {
+	audio::supported()
+}
+
+pub(crate) fn source_preview(source: SourceId) -> Option<image::RgbaImage> {
+	let settings = CaptureSettings {
+		source,
+		width: 320,
+		height: 180,
+		fps: 1,
+		cursor: false,
+		audio: false,
+	};
+	let (send, receive) = std::sync::mpsc::sync_channel(1);
+	let stop = Arc::new(AtomicBool::new(false));
+	let capture = Capture::start(
+		settings,
+		send,
+		None,
+		stop.clone(),
+		Arc::new(AtomicBool::new(false)),
+		Arc::new(AtomicU64::new(0)),
+		Arc::new(AtomicBool::new(false)),
+	)
+	.ok()?;
+	let frame = receive.recv_timeout(Duration::from_millis(600)).ok();
+	stop.store(true, Ordering::Release);
+	drop(capture);
+	let frame = frame?;
+	crate::screen::preview_frame(&frame)
+		.ok()
+		.map(|image| image::imageops::thumbnail(&image, 320, 180))
+}
+
 fn monitor_id(monitor: &Monitor) -> u64 {
 	u64::try_from(monitor.as_raw_hmonitor() as usize).unwrap_or(0)
 }
@@ -34,7 +71,16 @@ fn window_id(window: &Window) -> u64 {
 
 pub(crate) fn sources() -> Result<Vec<Source>, &'static str> {
 	let mut sources = Vec::with_capacity(MAX_SOURCES);
-	for monitor in Monitor::enumerate().map_err(|_| "Displays could not be enumerated")? {
+	let monitors = Monitor::enumerate();
+	let windows = discovery::windows();
+	if monitors.is_err() && windows.is_err() {
+		return Err("Screens and application windows could not be enumerated");
+	}
+	for monitor in monitors
+		.unwrap_or_default()
+		.into_iter()
+		.take(MAX_SOURCES / 4)
+	{
 		let (Ok(width), Ok(height)) = (monitor.width(), monitor.height()) else {
 			continue;
 		};
@@ -54,7 +100,7 @@ pub(crate) fn sources() -> Result<Vec<Source>, &'static str> {
 		}
 	}
 
-	for window in Window::enumerate().map_err(|_| "Windows could not be enumerated")? {
+	for window in windows.unwrap_or_default() {
 		let Ok(title) = window.title() else {
 			continue;
 		};
@@ -216,7 +262,7 @@ impl Capture {
 				start_item(settings, monitor, frames, stop.clone(), pending)
 			}
 			SourceId::Window(id) => {
-				let window = Window::enumerate()
+				let window = discovery::windows()
 					.map_err(|_| "Windows could not be enumerated")?
 					.into_iter()
 					.find(|window| window_id(window) == id)

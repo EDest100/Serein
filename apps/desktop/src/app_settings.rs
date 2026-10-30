@@ -104,7 +104,7 @@ impl Settings {
 		ui.hide_nitro_emojis = value.hide_nitro_emojis;
 		ui.convert_emoticons = value.convert_emoticons;
 		ui.preload_on_hover = value.preload_on_hover;
-		ui.hide_title_bar = value.hide_title_bar;
+		ui.hide_title_bar = cfg!(target_os = "windows") || value.hide_title_bar;
 		ui.message_requests_collapsed = value.message_requests_collapsed;
 		ui.hide_window_decorations = value.hide_window_decorations;
 		ui.gpu_preference = value.gpu_preference;

@@ -79,7 +79,20 @@ pub struct Video {
 
 /// Whether this platform can capture system audio with the screen.
 pub fn audio_supported() -> bool {
+	#[cfg(target_os = "windows")]
+	return capture::audio_supported();
+	#[cfg(not(target_os = "windows"))]
 	supported()
+}
+
+pub fn source_preview(source: SourceId) -> Option<image::RgbaImage> {
+	#[cfg(target_os = "windows")]
+	return capture::source_preview(source);
+	#[cfg(not(target_os = "windows"))]
+	{
+		let _ = source;
+		None
+	}
 }
 
 pub fn supported() -> bool {

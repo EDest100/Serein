@@ -113,6 +113,7 @@ pub fn check() {
 				id: Id(101),
 				bits: 0,
 				name: "Synthetic colored role".into(),
+				managed: false,
 				color: 0x68ada4,
 				secondary_color: None,
 				tertiary_color: None,

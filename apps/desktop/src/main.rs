@@ -307,6 +307,7 @@ fn main() -> eframe::Result {
 				role: model::permissions::Role {
 					id: role,
 					name: "Verified".into(),
+					managed: false,
 					color: 0x00ff00,
 					secondary_color: None,
 					tertiary_color: None,
@@ -521,8 +522,7 @@ fn main() -> eframe::Result {
 					.with_titlebar_shown(false)
 					.with_fullsize_content_view(true)
 			} else if cfg!(target_os = "windows") {
-				// The app paints its own caption strip and buttons; see `ui::design::window_controls`.
-				builder.with_decorations(false)
+				builder.with_decorations(true)
 			} else if cfg!(target_os = "linux") {
 				builder.with_decorations(!hide_window_decorations)
 			} else {
@@ -1652,6 +1652,7 @@ impl Desktop {
 							id: model::Id(9001),
 							bits: 0,
 							name: "Founders".into(),
+							managed: false,
 							color: 0xe78284,
 							secondary_color: gradient_roles.then_some(0x89b4fa),
 							tertiary_color: None,
@@ -1662,6 +1663,7 @@ impl Desktop {
 							id: model::Id(9002),
 							bits: 0,
 							name: "Community".into(),
+							managed: false,
 							color: if gradient_roles { 11127295 } else { 0xe5c769 },
 							secondary_color: gradient_roles.then_some(16759788),
 							tertiary_color: gradient_roles.then_some(16761760),
@@ -6433,8 +6435,8 @@ impl eframe::App for Desktop {
 				.set_decorations(!self.messaging.hide_window_decorations);
 		}
 		#[cfg(target_os = "windows")]
-		if self.window.is_decorated() != self.messaging.hide_title_bar {
-			self.window.set_decorations(self.messaging.hide_title_bar);
+		if !self.window.is_decorated() {
+			self.window.set_decorations(true);
 			align_undecorated_surface(&self.window);
 		}
 		#[cfg(target_os = "macos")]

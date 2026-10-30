@@ -3164,8 +3164,8 @@ impl MessagingUi {
 		let bar = ui.max_rect();
 		// A narrow stage sheds secondary controls (view toggles, device chevrons, then
 		// share/more) before anything overlaps; mute, camera and hang-up always stay.
-		let actions = 2.0 * 48.0;
-		let essential = 2.0 * 48.0 + BAR_GAP + HANG_UP;
+		let actions = 2.0 * 40.0;
+		let essential = 2.0 * 40.0 + BAR_GAP + HANG_UP;
 		let side = [watched.is_some(), focused, screen_focused]
 			.iter()
 			.filter(|shown| **shown)
@@ -3174,11 +3174,11 @@ impl MessagingUi {
 		let side_shown = bar.width() - 2.0 * STAGE_MARGIN >= essential + BAR_GAP + side;
 		let side = if side_shown { side } else { 0.0 };
 		let room = bar.width() - 2.0 * STAGE_MARGIN - if side > 0.0 { side + BAR_GAP } else { 0.0 };
-		let chevrons = room >= 2.0 * 28.0 + actions + BAR_GAP + essential;
+		let chevrons = room >= 2.0 * 24.0 + actions + BAR_GAP + essential;
 		let media = if chevrons {
-			2.0 * (48.0 + 28.0)
+			2.0 * (40.0 + 24.0)
 		} else {
-			2.0 * 48.0
+			2.0 * 40.0
 		};
 		let actions_shown = room >= media + BAR_GAP + actions + BAR_GAP + HANG_UP;
 		let width = media
@@ -3212,7 +3212,7 @@ impl MessagingUi {
 				} else {
 					crate::icons::Icon::Microphone
 				},
-				48.0,
+				40.0,
 				voice_toggles && (can_speak || state.demo),
 				if muted { colors.danger } else { STAGE_TEXT },
 				if muted { "Unmute" } else { "Mute" },
@@ -3229,7 +3229,7 @@ impl MessagingUi {
 				let settings = control(
 					ui,
 					crate::icons::Icon::ChevronDown,
-					28.0,
+					24.0,
 					true,
 					STAGE_TEXT,
 					"Voice settings",
@@ -3244,7 +3244,7 @@ impl MessagingUi {
 				} else {
 					crate::icons::Icon::VideoSlash
 				},
-				48.0,
+				40.0,
 				controls && (camera || can_camera),
 				if camera { colors.positive } else { STAGE_TEXT },
 				if camera {
@@ -3275,7 +3275,7 @@ impl MessagingUi {
 				let camera_settings = control(
 					ui,
 					crate::icons::Icon::ChevronDown,
-					28.0,
+					24.0,
 					true,
 					STAGE_TEXT,
 					"Camera settings",
@@ -3287,31 +3287,24 @@ impl MessagingUi {
 		if actions_shown {
 			pill(&mut row, actions, |ui| {
 				self.screen_share_control(ui, state);
-				let more = control(
+				deafen_clicked = control(
 					ui,
-					crate::icons::Icon::More,
-					48.0,
-					true,
-					STAGE_TEXT,
-					"More options",
-					"More call options",
-				);
-				egui::Popup::menu(&more)
-					.close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-					.show(|ui| {
-						let label = crate::i18n::translate_if_key(if deafened {
-							"Undeafen"
-						} else {
-							"Deafen"
-						});
-						if ui
-							.add_enabled(voice_toggles, egui::Button::new(label))
-							.clicked()
-						{
-							deafen_clicked = true;
-							ui.close();
-						}
-					});
+					if deafened {
+						crate::icons::Icon::HeadphonesSlash
+					} else {
+						crate::icons::Icon::Headphones
+					},
+					40.0,
+					voice_toggles,
+					if deafened { colors.danger } else { STAGE_TEXT },
+					if deafened { "Undeafen" } else { "Deafen" },
+					if deafened {
+						"Hear the call again"
+					} else {
+						"Mute microphone and call audio"
+					},
+				)
+				.clicked();
 			});
 		}
 		// While a watched share is enlarged, the red action stops watching, as in Discord.
@@ -3468,7 +3461,7 @@ impl MessagingUi {
 		let response = control(
 			ui,
 			crate::icons::Icon::ScreenShare,
-			48.0,
+			40.0,
 			enabled,
 			color,
 			label,
@@ -4127,9 +4120,9 @@ const FRAMELESS_MARGIN: f32 = 20.0;
 const MIN_STRIP: f32 = 64.0;
 const MIN_FOCUS: f32 = 80.0;
 /// Height shared by every control, pill and the hang-up button in the call bar.
-const CONTROL_HEIGHT: f32 = 48.0;
-const HANG_UP: f32 = 64.0;
-const BAR_GAP: f32 = 12.0;
+const CONTROL_HEIGHT: f32 = 40.0;
+const HANG_UP: f32 = 56.0;
+const BAR_GAP: f32 = 8.0;
 
 /// Green ring like Discord's speaking indicator; the accessible label still names the state.
 /// Which stage tile is enlarged; cleared automatically when it stops showing video.

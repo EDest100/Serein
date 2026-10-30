@@ -8,7 +8,11 @@ use discord_voice::{Identity, Status, screen::Worker};
 use eframe::egui;
 use model::Id;
 use std::{
-	sync::{Arc, mpsc},
+	sync::{
+		Arc,
+		atomic::{AtomicBool, Ordering},
+		mpsc,
+	},
 	time::{Duration, Instant},
 };
 use tokio::{runtime::Runtime, sync::watch, task::JoinHandle};
@@ -71,7 +75,17 @@ struct Closing {
 struct SourceScan {
 	generation: u64,
 	context: Option<(u64, Id, u64)>,
-	receive: mpsc::Receiver<Result<Vec<screen::Source>, &'static str>>,
+	receive: mpsc::Receiver<SourceUpdate>,
+	cancel: Arc<AtomicBool>,
+}
+enum SourceUpdate {
+	Sources(Result<Vec<screen::Source>, &'static str>),
+	Preview(screen::SourceId, image::RgbaImage),
+}
+impl Drop for SourceScan {
+	fn drop(&mut self) {
+		self.cancel.store(true, Ordering::Release);
+	}
 }
 
 #[derive(Default)]
@@ -251,6 +265,14 @@ impl Screen {
 			return None;
 		}
 		ui.screen.supported = discord_voice::screen::supported();
+		ui.screen.audio_supported = discord_voice::screen::audio_supported();
+		ui.screen.scanning = self.source_scan.is_some();
+		if !ui.screen.open {
+			ui.screen.thumbnails.clear();
+			if let Some(scan) = &self.source_scan {
+				scan.cancel.store(true, Ordering::Release);
+			}
+		}
 		let cue = model::notification_preferences::Sound::ViewerJoin;
 		if std::mem::take(&mut self.viewer_cue) && ui.notification_options.allows(cue) {
 			ui.notification_preview = Some(cue);
@@ -264,13 +286,38 @@ impl Screen {
 		if ui.screen.refresh_requested {
 			ui.screen.refresh_requested = false;
 			if !state.demo && self.source_scan.is_none() && ui.screen.supported {
-				let (send, receive) = mpsc::sync_channel(1);
+				let (send, receive) = mpsc::sync_channel(2);
 				let wake = ctx.clone();
+				let cancel = Arc::new(AtomicBool::new(false));
+				let cancelled = cancel.clone();
 				self.status = "Looking for screens and windows…";
 				match std::thread::Builder::new()
 					.name("screen-sources".into())
 					.spawn(move || {
-						let _ = send.send(discord_voice::screen::sources());
+						let sources = discord_voice::screen::sources();
+						let ids = sources
+							.as_ref()
+							.map(|sources| {
+								sources.iter().map(|source| source.id).collect::<Vec<_>>()
+							})
+							.unwrap_or_default();
+						if send.send(SourceUpdate::Sources(sources)).is_err() {
+							return;
+						}
+						wake.request_repaint();
+						for id in ids {
+							if cancelled.load(Ordering::Acquire) {
+								break;
+							}
+							if let Some(image) = discord_voice::screen::source_preview(id) {
+								if cancelled.load(Ordering::Acquire)
+									|| send.send(SourceUpdate::Preview(id, image)).is_err()
+								{
+									break;
+								}
+								wake.request_repaint();
+							}
+						}
 						wake.request_repaint();
 					}) {
 					Ok(_) => {
@@ -278,10 +325,13 @@ impl Screen {
 							generation: state.generation,
 							context: ui.screen.context,
 							receive,
+							cancel,
 						})
 					}
 					Err(_) => self.status = "Could not start screen source discovery",
 				}
+			} else if self.source_scan.is_some() {
+				ui.screen.refresh_requested = true;
 			} else if !ui.screen.supported {
 				self.status = "Screen sharing is unavailable on this platform";
 			}
@@ -290,27 +340,18 @@ impl Screen {
 			match scan.receive.try_recv() {
 				Ok(_)
 					if !ui.screen.open
+						|| scan.cancel.load(Ordering::Acquire)
 						|| scan.generation != state.generation
 						|| scan.context != ui.screen.context =>
 				{
-					self.source_scan = None;
+					scan.cancel.store(true, Ordering::Release);
 					if ui.screen.open {
 						ui.screen.refresh_requested = true;
 						ctx.request_repaint();
 					}
 				}
-				Ok(Ok(sources)) => {
-					ui.screen.sources = sources;
-					ui.screen.selected = ui
-						.screen
-						.selected
-						.filter(|selected| {
-							ui.screen
-								.sources
-								.iter()
-								.any(|source| source.id == *selected)
-						})
-						.or_else(|| ui.screen.sources.first().map(|source| source.id));
+				Ok(SourceUpdate::Sources(Ok(sources))) => {
+					ui.screen.set_sources(sources);
 					self.status = if ui.screen.sources.is_empty() {
 						"No shareable screens or windows were found"
 					} else if cfg!(target_os = "linux") {
@@ -318,15 +359,34 @@ impl Screen {
 					} else {
 						"Choose a screen or window"
 					};
-					self.source_scan = None;
+					ctx.request_repaint();
 				}
-				Ok(Err(error)) => {
+				Ok(SourceUpdate::Sources(Err(error))) => {
 					self.status = error;
-					self.source_scan = None;
+				}
+				Ok(SourceUpdate::Preview(id, image)) => {
+					if ui.screen.sources.iter().any(|source| source.id == id)
+						&& ui.screen.thumbnails.len() < screen::MAX_SOURCES
+					{
+						let image = egui::ColorImage::from_rgba_unmultiplied(
+							[image.width() as usize, image.height() as usize],
+							image.as_raw(),
+						);
+						ui.screen.thumbnails.push((
+							id,
+							ctx.load_texture(
+								format!("source-{id:?}"),
+								image,
+								egui::TextureOptions::LINEAR,
+							),
+						));
+					}
+					ctx.request_repaint();
 				}
 				Err(mpsc::TryRecvError::Disconnected) => {
-					self.status = "Screen source discovery stopped";
 					self.source_scan = None;
+					ui.screen.scanning = false;
+					ctx.request_repaint();
 				}
 				Err(mpsc::TryRecvError::Empty) => {}
 			}

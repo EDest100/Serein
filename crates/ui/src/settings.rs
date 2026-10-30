@@ -889,7 +889,7 @@ impl MessagingUi {
 				);
 				design::card_divider(ui);
 			}
-			#[cfg(any(target_os = "windows", target_os = "macos"))]
+			#[cfg(target_os = "macos")]
 			{
 				let label = language.text("general-hide-title-bar");
 				let description = language.text("general-hide-title-bar-description");

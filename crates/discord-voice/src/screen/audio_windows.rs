@@ -6,6 +6,12 @@ use std::sync::{
 use tokio::sync::mpsc::Sender;
 
 #[cfg(target_os = "windows")]
+pub(crate) fn supported() -> bool {
+	static SUPPORTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+	*SUPPORTED.get_or_init(native::supported)
+}
+
+#[cfg(target_os = "windows")]
 pub(super) struct Audio {
 	thread: Option<std::thread::JoinHandle<()>>,
 	stop: Arc<AtomicBool>,
@@ -20,6 +26,9 @@ impl Audio {
 		ready: Arc<AtomicBool>,
 		audio_epoch: Arc<AtomicU64>,
 	) -> Result<Self, &'static str> {
+		if !supported() {
+			return Err("Desktop audio requires Windows build 20348 or newer");
+		}
 		let failed = Arc::new(AtomicBool::new(false));
 		let input = Samples {
 			send,
@@ -99,6 +108,19 @@ mod native {
 		},
 		core::{HRESULT, Interface, Ref, Result, implement},
 	};
+
+	pub(super) fn supported() -> bool {
+		use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
+		#[link(name = "ntdll")]
+		unsafe extern "system" {
+			fn RtlGetVersion(version: *mut OSVERSIONINFOW) -> windows::Win32::Foundation::NTSTATUS;
+		}
+		let mut version = OSVERSIONINFOW {
+			dwOSVersionInfoSize: size_of::<OSVERSIONINFOW>() as u32,
+			..Default::default()
+		};
+		unsafe { RtlGetVersion(&mut version).is_ok() && version.dwBuildNumber >= 20348 }
+	}
 
 	#[implement(IActivateAudioInterfaceCompletionHandler)]
 	struct Completion {

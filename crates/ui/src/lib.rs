@@ -4019,7 +4019,7 @@ impl MessagingUi {
 		ui.add_space(6.0);
 	}
 	fn shows_title_bar(&self) -> bool {
-		!cfg!(target_os = "linux") && !self.hide_title_bar
+		!cfg!(any(target_os = "linux", target_os = "windows")) && !self.hide_title_bar
 	}
 	fn apply_pending_mention(
 		&mut self,
